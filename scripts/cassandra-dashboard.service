@@ -1,0 +1,14 @@
+[Unit]
+Description=Cassandra dashboard (Flask)
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/cassandra
+ExecStart=/home/pi/cassandra/venv/bin/python /home/pi/cassandra/dashboard/app.py
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

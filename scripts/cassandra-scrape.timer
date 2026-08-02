@@ -1,0 +1,11 @@
+[Unit]
+Description=Run Cassandra scrapers + digest once a day
+
+[Timer]
+# Runs daily at 07:00 local time. Adjust as you like.
+OnCalendar=*-*-* 07:00:00
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

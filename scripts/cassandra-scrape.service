@@ -1,0 +1,10 @@
+[Unit]
+Description=Cassandra scraper run (one-shot)
+
+[Service]
+Type=oneshot
+User=pi
+WorkingDirectory=/home/pi/cassandra
+EnvironmentFile=-/home/pi/cassandra/.env
+ExecStart=/home/pi/cassandra/venv/bin/python /home/pi/cassandra/scrapers/run_all.py
+ExecStartPost=/home/pi/cassandra/venv/bin/python /home/pi/cassandra/digest/digest.py

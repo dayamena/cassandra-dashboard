@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cassandra — Public Records Monitor</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --paper: #ede8dd;
+    --ink: #2b2822;
+    --ink-soft: #5c5748;
+    --rule: #b8ae98;
+    --stamp-red: #7a2f24;
+    --index-tab: #d8cdb0;
+    --mono: 'Courier New', ui-monospace, monospace;
+    --serif: Georgia, 'Times New Roman', serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    background-image:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.015) 0px, rgba(0,0,0,0.015) 1px, transparent 1px, transparent 3px);
+    color: var(--ink);
+    font-family: var(--serif);
+    line-height: 1.5;
+  }
+
+  header {
+    border-bottom: 3px double var(--ink);
+    padding: 28px 32px 18px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  header h1 {
+    font-size: 2rem;
+    margin: 0;
+    letter-spacing: 0.02em;
+  }
+
+  header h1 .stamp {
+    display: inline-block;
+    color: var(--stamp-red);
+    border: 2px solid var(--stamp-red);
+    padding: 2px 10px;
+    font-family: var(--mono);
+    font-size: 0.9rem;
+    font-weight: bold;
+    transform: rotate(-3deg);
+    margin-left: 12px;
+    border-radius: 3px;
+  }
+
+  header .subtitle {
+    font-family: var(--mono);
+    color: var(--ink-soft);
+    font-size: 0.85rem;
+  }
+
+  .file-index {
+    display: flex;
+    gap: 2px;
+    padding: 0 24px;
+    margin-top: 18px;
+  }
+
+  .tab {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    background: var(--index-tab);
+    padding: 8px 16px;
+    border: 1px solid var(--rule);
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+
+  .tab.active {
+    background: var(--paper);
+    color: var(--ink);
+    font-weight: bold;
+    border-bottom: 1px solid var(--paper);
+    margin-bottom: -1px;
+  }
+
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 32px 60px;
+  }
+
+  section.panel {
+    border: 1px solid var(--rule);
+    border-top: none;
+    background: rgba(255,255,255,0.25);
+    padding: 24px;
+    display: none;
+  }
+
+  section.panel.active { display: block; }
+
+  .panel h2 {
+    font-family: var(--mono);
+    font-size: 0.95rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 8px;
+    margin-top: 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+  }
+
+  th {
+    text-align: left;
+    border-bottom: 2px solid var(--ink);
+    padding: 8px 10px;
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    color: var(--ink-soft);
+  }
+
+  td {
+    padding: 7px 10px;
+    border-bottom: 1px dotted var(--rule);
+    vertical-align: top;
+  }
+
+  tr:hover td { background: rgba(122, 47, 36, 0.05); }
+
+  a { color: var(--stamp-red); text-decoration: none; border-bottom: 1px dotted var(--stamp-red); }
+  a:hover { text-decoration: none; border-bottom-style: solid; }
+
+  .chart-wrap {
+    background: rgba(255,255,255,0.4);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 16px;
+    margin-bottom: 24px;
+    max-height: 340px;
+  }
+
+  .status-line {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--ink-soft);
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    padding: 10px 0 0;
+  }
+
+  .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+  .status-ok { background: #4a6b4a; }
+  .status-error { background: var(--stamp-red); }
+
+  .empty-note {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--ink-soft);
+    font-style: italic;
+    padding: 20px 0;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Cassandra <span class="stamp">Public Record</span></h1>
+    <div class="subtitle">detention facility statistics · court filings · public disclosures</div>
+  </div>
+  <div class="status-line" id="scrape-status">loading scrape log…</div>
+</header>
+
+<div class="file-index">
+  <div class="tab active" data-panel="facilities">Facility Populations</div>
+  <div class="tab" data-panel="dockets">Court Dockets</div>
+  <div class="tab" data-panel="press">Press &amp; Disclosures</div>
+</div>
+
+<main>
+  <section class="panel active" id="panel-facilities">
+    <h2>Detention Population by Facility</h2>
+    <div class="chart-wrap"><canvas id="facilityChart"></canvas></div>
+    <table id="facilityTable">
+      <thead><tr><th>Facility</th><th>State</th><th>Report Date</th><th>Population</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="panel" id="panel-dockets">
+    <h2>Recent Court Dockets</h2>
+    <table id="docketTable">
+      <thead><tr><th>Case No.</th><th>Court</th><th>Filed</th><th>Title</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <section class="panel" id="panel-press">
+    <h2>Press Releases &amp; Disclosures</h2>
+    <table id="pressTable">
+      <thead><tr><th>Date</th><th>Source</th><th>Title</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</main>
+
+<script>
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+    });
+  });
+
+  async function loadJSON(url) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      return await res.json();
+    } catch (e) {
+      console.error('fetch failed', url, e);
+      return [];
+    }
+  }
+
+  function emptyRow(colspan, msg) {
+    return `<tr><td colspan="${colspan}" class="empty-note">${msg}</td></tr>`;
+  }
+
+  async function renderFacilities() {
+    const rows = await loadJSON('/api/facility-stats');
+    const tbody = document.querySelector('#facilityTable tbody');
+    tbody.innerHTML = rows.length
+      ? rows.map(r => `<tr><td>${r.facility_name ?? '—'}</td><td>${r.state ?? '—'}</td><td>${r.report_date ?? '—'}</td><td>${r.population ?? '—'}</td></tr>`).join('')
+      : emptyRow(4, 'No facility data yet — run the scrapers to populate this table.');
+
+    // simple bar chart of the latest ~15 rows
+    const top = rows.slice(0, 15);
+    new Chart(document.getElementById('facilityChart'), {
+      type: 'bar',
+      data: {
+        labels: top.map(r => r.facility_name),
+        datasets: [{
+          label: 'Population',
+          data: top.map(r => r.population),
+          backgroundColor: 'rgba(122, 47, 36, 0.55)',
+          borderColor: '#7a2f24',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { font: { family: 'Courier New', size: 9 }, maxRotation: 60, minRotation: 30 } },
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  }
+
+  async function renderDockets() {
+    const rows = await loadJSON('/api/recent-dockets');
+    const tbody = document.querySelector('#docketTable tbody');
+    tbody.innerHTML = rows.length
+      ? rows.map(r => `<tr><td>${r.case_number ?? '—'}</td><td>${r.court ?? '—'}</td><td>${r.filing_date ?? '—'}</td><td><a href="${r.docket_url}" target="_blank" rel="noopener">${r.title ?? r.docket_url}</a></td></tr>`).join('')
+      : emptyRow(4, 'No docket data yet — run the scrapers to populate this table.');
+  }
+
+  async function renderPress() {
+    const rows = await loadJSON('/api/recent-press');
+    const tbody = document.querySelector('#pressTable tbody');
+    tbody.innerHTML = rows.length
+      ? rows.map(r => `<tr><td>${r.published_date ?? '—'}</td><td>${r.source ?? '—'}</td><td><a href="${r.url}" target="_blank" rel="noopener">${r.title}</a></td></tr>`).join('')
+      : emptyRow(3, 'No press releases logged yet — run the scrapers to populate this table.');
+  }
+
+  async function renderStatus() {
+    const rows = await loadJSON('/api/scrape-status');
+    const el = document.getElementById('scrape-status');
+    if (!rows.length) { el.textContent = 'no scrape runs logged yet'; return; }
+    el.innerHTML = rows.slice(0, 3).map(r =>
+      `<span><span class="status-dot ${r.status === 'ok' ? 'status-ok' : 'status-error'}"></span>${r.scraper_name}: ${r.status} (${r.rows_added ?? 0} rows)</span>`
+    ).join('');
+  }
+
+  renderFacilities();
+  renderDockets();
+  renderPress();
+  renderStatus();
+</script>
+
+</body>
+</html>
