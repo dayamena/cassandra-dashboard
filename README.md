@@ -94,3 +94,4 @@ Some natural next additions, if useful:
 - RSS/Atom feed support for sources that publish one, which is more
   stable than HTML scraping.
 - A `state` filter or facility watchlist for the dashboard.
+# cassandra-dashboard
