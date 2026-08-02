@@ -1,0 +1,24 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Python-generated files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup archives
+*.tar.gz
+*.tgz
+*.zip
+
+# Local tooling
+.venv/
+venv/
+.pytest_cache/
